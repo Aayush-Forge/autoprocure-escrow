@@ -147,3 +147,17 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Python & FastAPI (agents-catalog)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Next.js & Environment Secrets
+.next/
+out/
+.env
+.env.*
+!.env.example
