@@ -113,7 +113,7 @@ def generate_live_negotiation_events(prompt: str, budget_cap: float) -> List[Dic
         """
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash-lite",
             contents=system_instruction,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -122,9 +122,11 @@ def generate_live_negotiation_events(prompt: str, budget_cap: float) -> List[Dic
         )
         parsed = json.loads(response.text)
         if isinstance(parsed, list) and len(parsed) > 0:
+            for item in parsed:
+                item["engine"] = "GEMINI_2.5_FLASH_LIVE"
             return parsed
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"\n[GEMINI ERROR]: {e}\n")
 
     return get_fallback_events()
 
