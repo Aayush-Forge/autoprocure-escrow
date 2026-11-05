@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import httpx
 from dotenv import load_dotenv
 from google import genai
@@ -18,49 +18,122 @@ def load_shared_contract() -> Dict[str, Any]:
         return json.load(f)
 
 
-def get_fallback_events() -> List[Dict[str, str]]:
-    """Deterministic Golden Demo stream ($1,150.00 -> $950.00, saving $200.00 under $1,000.00 cap)."""
+def get_fallback_events() -> List[Dict[str, Any]]:
+    """Deterministic Enterprise Demo stream with embedded order payloads for AG Grid."""
     return [
         {
             "agent": "SYSTEM",
             "step": "MANDATE_LOCKED",
-            "message": "Budget Cap locked at $1,000.00. Initial BOM quote across 3 vendors is $1,150.00 ($150.00 over budget). Launching autonomous negotiation swarm."
+            "message": "Procurement mandate initialized: Budget cap locked at $1,000.00. Deploying autonomous negotiation swarm across Channel3 B2B suppliers.",
+            "order_data": None
         },
         {
             "agent": "CHANNEL3_DISCOVERY",
             "step": "CATALOG_MATCH",
-            "message": "Matched SKU CH3-SNS-9921 (25x Industrial Temp Sensors @ $620.00) and SKU CH3-MCU-4410 (25x ESP32-S3 Gateways @ $310.00) via Channel3 API."
+            "message": "Matched 3 validated enterprise SKUs via Channel3 API: Industrial Sensors (OmniSense), ESP32-S3 Gateways (SiliconSupply), and Automated QA Suite (TestBot-Alpha).",
+            "order_data": {
+                "order_id": "ORD-101",
+                "sku": "CH3-SNS-9921",
+                "item_name": "Industrial IoT Temp/Humidity Sensor Batch (25x)",
+                "vendor_name": "OmniSense Hardware (Channel3)",
+                "initial_price_usd": 620.00,
+                "negotiated_price_usd": 620.00,
+                "savings_usd": 0.00,
+                "savings_pct": 0.0,
+                "paypal_order_id": "5O190127TN364715T",
+                "paypal_auth_id": "0VF52814937998046",
+                "escrow_status": "PENDING_DISCOVERY",
+                "auditor_verdict": "AWAITING_NEGOTIATION",
+                "start_date": "2026-11-04",
+                "end_date": "2026-11-08"
+            }
         },
         {
             "agent": "BUYER_AGENT",
             "step": "OFFER_SENT",
-            "message": "Proposing bulk tier discount to OmniSense Hardware: 25x CH3-SNS-9921 for $495.00 with immediate PayPal Authorization Escrow."
+            "message": "Transmitted bundled volume offer: Proposing $510.00 for CH3-SNS-9921 (-17.7%) backed by guaranteed PayPal Authorization Escrow.",
+            "order_data": None
         },
         {
             "agent": "SELLER_AGENT",
             "step": "COUNTER_OFFER",
-            "message": "OmniSense Seller Agent counter-offers $540.00 citing expedited shipping costs."
+            "message": "OmniSense Seller Agent accepted terms: Counter-signed escrow conditions with delivery milestone SLA fixed at 4 days.",
+            "order_data": None
         },
         {
             "agent": "BUYER_AGENT",
             "step": "DEAL_LOCKED",
-            "message": "Settled at $510.00 ($110.00 saved / 17.7% discount). Requesting PayPal Orders v2 AUTHORIZE hold."
+            "message": "BOM pricing secured across all 3 suppliers. Baseline reduced from $1,150.00 down to $950.00 ($200.00 savings secured).",
+            "order_data": {
+                "order_id": "ORD-101",
+                "negotiated_price_usd": 510.00,
+                "savings_usd": 110.00,
+                "savings_pct": 17.7,
+                "escrow_status": "DEAL_AGREED"
+            }
         },
         {
             "agent": "PAYPAL_VAULT",
             "step": "ESCROW_AUTHORIZED",
-            "message": "PayPal Order 5O190127TN364715T AUTHORIZED ($510.00 locked in sandbox escrow). Total campaign spend optimized to $950.00 ($50.00 under cap)."
+            "message": "PayPal Orders v2 AUTHORIZE executed: $510.00 locked under Auth ID 0VF52814937998046 for ORD-101.",
+            "order_data": {
+                "order_id": "ORD-101",
+                "escrow_status": "AUTHORIZED",
+                "auditor_verdict": "PENDING_DELIVERY_AUDIT"
+            }
+        },
+        {
+            "agent": "PAYPAL_VAULT",
+            "step": "ESCROW_AUTHORIZED",
+            "message": "Secondary order authorized: ORD-102 ($265.00 Auth 9PL44102837461920).",
+            "order_data": {
+                "order_id": "ORD-102",
+                "sku": "CH3-MCU-4410",
+                "item_name": "ESP32-S3 Edge Gateway Modules (25x)",
+                "vendor_name": "SiliconSupply Co. (Channel3)",
+                "initial_price_usd": 310.00,
+                "negotiated_price_usd": 265.00,
+                "savings_usd": 45.00,
+                "savings_pct": 14.5,
+                "paypal_order_id": "8KL20948XM112390B",
+                "paypal_auth_id": "9PL44102837461920",
+                "escrow_status": "AUTHORIZED",
+                "auditor_verdict": "PENDING_DELIVERY_AUDIT",
+                "start_date": "2026-11-04",
+                "end_date": "2026-11-09"
+            }
+        },
+        {
+            "agent": "PAYPAL_VAULT",
+            "step": "ESCROW_AUTHORIZED",
+            "message": "Secondary order authorized: ORD-103 ($175.00 Auth 7GH11203948576102).",
+            "order_data": {
+                "order_id": "ORD-103",
+                "sku": "A2A-QA-088",
+                "item_name": "Automated Firmware QA Suite (Worker Agent)",
+                "vendor_name": "TestBot-Alpha (A2A Worker)",
+                "initial_price_usd": 220.00,
+                "negotiated_price_usd": 175.00,
+                "savings_usd": 45.00,
+                "savings_pct": 20.5,
+                "paypal_order_id": "3MN99812ZP445120C",
+                "paypal_auth_id": "7GH11203948576102",
+                "escrow_status": "AUTHORIZED",
+                "auditor_verdict": "PENDING_DELIVERY_AUDIT",
+                "start_date": "2026-11-04",
+                "end_date": "2026-11-07"
+            }
         },
         {
             "agent": "AUDITOR_AGENT",
             "step": "SPEC_VERIFICATION",
-            "message": "ORD-101 passed telemetry & tracking verification -> Triggered PayPal CAPTURE ($510.00 released). ORD-103 (TestBot-Alpha) failed unit test suite -> Triggered PayPal VOID ($175.00 protected!)."
+            "message": "Auditor Agent running telemetry verification: Telemetry stream online. Ready for manual or automated SLA partial capture / void.",
+            "order_data": None
         }
     ]
 
 
 async def search_channel3_catalog_items(query: str) -> Dict[str, Any]:
-    """Queries Channel3 API if CHANNEL3_API_KEY is set; otherwise returns shared contract items."""
     channel3_key = os.getenv("CHANNEL3_API_KEY", "").strip()
     contract = load_shared_contract()
 
@@ -89,44 +162,46 @@ async def search_channel3_catalog_items(query: str) -> Dict[str, Any]:
     }
 
 
-def generate_live_negotiation_events(prompt: str, budget_cap: float) -> List[Dict[str, str]]:
-    """Uses Gemini 2.5 Flash to generate a real multi-agent negotiation log, with safe fallback."""
+def generate_live_negotiation_events(prompt: str, budget_cap: float) -> List[Dict[str, Any]]:
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key or api_key == "your_gemini_key_here":
         return get_fallback_events()
 
-    try:
-        client = genai.Client(api_key=api_key)
-        contract = load_shared_contract()
+    for model_candidate in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+        try:
+            client = genai.Client(api_key=api_key)
+            contract = load_shared_contract()
 
-        system_instruction = f"""
-        You are the orchestration brain of AutoProcure Escrow.
-        Generate a 7-step JSON array of multi-agent events for this procurement request:
-        User Prompt: "{prompt}"
-        Hard Budget Cap: ${budget_cap:.2f}
-        Reference Catalog Data: {json.dumps(contract["orders"])}
+            system_instruction = f"""
+            You are the enterprise orchestration brain of AutoProcure Escrow.
+            User Request: "{prompt}"
+            Budget Cap: ${budget_cap:.2f}
+            Catalog Reference: {json.dumps(contract["orders"])}
 
-        Each array item MUST be an object with exactly 3 string keys:
-        - "agent": One of ["SYSTEM", "CHANNEL3_DISCOVERY", "BUYER_AGENT", "SELLER_AGENT", "PAYPAL_VAULT", "AUDITOR_AGENT"]
-        - "step": Short uppercase step code (e.g., "MANDATE_LOCKED", "CATALOG_MATCH", "OFFER_SENT", "COUNTER_OFFER", "DEAL_LOCKED", "ESCROW_AUTHORIZED", "SPEC_VERIFICATION")
-        - "message": Crisp, specific financial and technical log showing exact dollar amounts, Channel3 SKUs, PayPal Authorization IDs, and Auditor Capture/Void outcomes.
-        """
+            Generate an 8-step JSON array representing the autonomous lifecycle.
+            Each array item MUST have:
+            - "agent": One of ["SYSTEM", "CHANNEL3_DISCOVERY", "BUYER_AGENT", "SELLER_AGENT", "PAYPAL_VAULT", "AUDITOR_AGENT"]
+            - "step": One of ["MANDATE_LOCKED", "CATALOG_MATCH", "OFFER_SENT", "COUNTER_OFFER", "DEAL_LOCKED", "ESCROW_AUTHORIZED", "SPEC_VERIFICATION"]
+            - "message": Financial log detailing exact dollar amounts, SKUs, and PayPal Auth IDs.
+            - "order_data": An optional object (or null) containing the order fields when introducing or updating a row in the ledger.
+            """
 
-        response = client.models.generate_content(
-            model="gemini-3.5-flash-lite",
-            contents=system_instruction,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.2,
-            ),
-        )
-        parsed = json.loads(response.text)
-        if isinstance(parsed, list) and len(parsed) > 0:
-            for item in parsed:
-                item["engine"] = "GEMINI_2.5_FLASH_LIVE"
-            return parsed
-    except Exception as e:
-        print(f"\n[GEMINI ERROR]: {e}\n")
+            response = client.models.generate_content(
+                model=model_candidate,
+                contents=system_instruction,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.2,
+                ),
+            )
+            parsed = json.loads(response.text)
+            if isinstance(parsed, list) and len(parsed) > 0:
+                for item in parsed:
+                    item["engine"] = f"{model_candidate.upper()}_LIVE"
+                return parsed
+        except Exception as e:
+            print(f"[Model {model_candidate} Notice]: {e}")
+            continue
 
     return get_fallback_events()
 
@@ -135,49 +210,25 @@ def run_auditor_inspection(
     order_id: str,
     paypal_auth_id: str,
     delivery_proof_ok: bool,
+    capture_percentage: float = 100.0,
     evidence_notes: str = ""
 ) -> Dict[str, Any]:
-    """Runs the Auditor AI check to decide CAPTURE vs VOID on a PayPal Authorization hold."""
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    default_action = "CAPTURE" if delivery_proof_ok else "VOID"
-    default_reason = (
-        "Telemetry and tracking match BOM specification. Releasing PayPal Escrow via CAPTURE."
-        if delivery_proof_ok
-        else "Deliverable failed automated verification checks. Protecting buyer funds via PayPal VOID."
-    )
-
-    if api_key and api_key != "your_gemini_key_here" and evidence_notes:
-        try:
-            client = genai.Client(api_key=api_key)
-            prompt = f"""
-            You are an autonomous Quality-Check Auditor Agent for PayPal Escrow.
-            Order ID: {order_id}
-            PayPal Auth ID: {paypal_auth_id}
-            Passed Automated Check Flag: {delivery_proof_ok}
-            Delivery Evidence Log: "{evidence_notes}"
-
-            Return JSON with keys:
-            - "auditor_decision": "CAPTURE" or "VOID"
-            - "reasoning": 1-sentence technical explanation of why funds are being captured or voided.
-            """
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.1,
-                ),
-            )
-            data = json.loads(response.text)
-            default_action = data.get("auditor_decision", default_action)
-            default_reason = data.get("reasoning", default_reason)
-        except Exception:
-            pass
+    """Evaluates SLA delivery and decides CAPTURE, PARTIAL_CAPTURE, or VOID."""
+    if not delivery_proof_ok:
+        action = "VOID"
+        reason = evidence_notes or "Deliverable failed automated inspection. Voiding authorization hold to protect buyer treasury."
+    elif capture_percentage < 100.0:
+        action = "PARTIAL_CAPTURE"
+        reason = f"Auditor applied SLA settlement penalty: Capturing {capture_percentage}% of authorized funds; releasing remainder to buyer."
+    else:
+        action = "CAPTURE"
+        reason = "Deliverable verified against hardware BOM. Executing 100% final escrow capture."
 
     return {
         "order_id": order_id,
         "paypal_auth_id": paypal_auth_id,
-        "auditor_decision": default_action,
-        "escrow_status": "CAPTURED" if default_action == "CAPTURE" else "VOIDED",
-        "message": default_reason
+        "auditor_decision": action,
+        "capture_percentage": capture_percentage,
+        "escrow_status": "CAPTURED" if action == "CAPTURE" else ("PARTIALLY_CAPTURED" if action == "PARTIAL_CAPTURE" else "VOIDED"),
+        "message": reason
     }
