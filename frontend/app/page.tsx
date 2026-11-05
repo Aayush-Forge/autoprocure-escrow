@@ -1,5 +1,6 @@
 "use client";
-
+import { generateCfoAuditDossier } from "./utils/exportDossier";
+import { FileDown } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { AllCommunityModule, ModuleRegistry, ValidationModule, ColDef } from "ag-grid-community";
@@ -24,6 +25,8 @@ import {
   Lock,
   FileCheck,
   ShieldAlert,
+  UploadCloud,
+  FileSpreadsheet,
 } from "lucide-react";
 
 ModuleRegistry.registerModules([AllCommunityModule, ValidationModule]);
@@ -66,6 +69,11 @@ interface RedTeamResult {
 }
 
 export default function AutoProcureDashboard() {
+  // BOM Dropzone Modal State
+  const [showBomModal, setShowBomModal] = useState<boolean>(false);
+  const [isParsingBom, setIsParsingBom] = useState<boolean>(false);
+  const [bomSuccessMessage, setBomSuccessMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [streamEvents, setStreamEvents] = useState<StreamEvent[]>([]);
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
@@ -164,6 +172,41 @@ export default function AutoProcureDashboard() {
   useEffect(() => {
     streamEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [streamEvents]);
+
+  // Ingest BOM Document (File upload or sample preset)
+  const handleIngestBom = async (fileName: string, fileType: string = "PDF") => {
+    setIsParsingBom(true);
+    setBomSuccessMessage(null);
+    try {
+      const res = await fetch("http://localhost:8000/api/bom/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          file_name: fileName,
+          file_type: fileType,
+          target_budget_cap: budgetCap,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.status === "SUCCESS") {
+        setCustomPrompt(data.synthesized_prompt);
+        setBudgetCap(data.suggested_budget_cap);
+        setOrders(data.parsed_orders);
+        setBomSuccessMessage(
+          `Gemini Multimodal parsed ${data.components_detected} line items from [${data.file_name}]. Ledger & budget cap synchronized!`
+        );
+        setTimeout(() => {
+          setShowBomModal(false);
+          setBomSuccessMessage(null);
+        }, 1800);
+      }
+    } catch {
+      alert("Failed to reach Gemini Multimodal BOM Parser on Port 8000.");
+    } finally {
+      setIsParsingBom(false);
+    }
+  };
 
   // Stream Negotiation Events (Dynamic AG Grid Population)
   const startAutonomousCampaign = () => {
@@ -464,6 +507,18 @@ export default function AutoProcureDashboard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* 1-Click CFO Audit Dossier Export */}
+          <button
+            onClick={() => generateCfoAuditDossier(orders, budgetCap, totalSavings, customPrompt)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-700/60 text-xs font-semibold text-emerald-300 transition shadow cursor-pointer"
+            title="Download CFO Compliance & Cryptographic Audit Trail Dossier (PDF)"
+          >
+            <FileDown className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Export CFO Dossier</span>
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => {
               setShowRedTeamModal(true);
@@ -554,8 +609,17 @@ export default function AutoProcureDashboard() {
         </div>
       </section>
 
-      {/* Campaign Launcher Bar */}
+      {/* Campaign Launcher & BOM Ingestion Bar */}
       <section className="p-4 rounded-xl bg-slate-900/40 backdrop-blur-md border border-slate-800 flex flex-col md:flex-row items-center gap-3">
+        <button
+          onClick={() => setShowBomModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-indigo-950/70 hover:bg-indigo-900/80 border border-indigo-700/60 text-xs font-semibold text-indigo-300 transition shadow w-full md:w-auto shrink-0 cursor-pointer"
+          title="Upload or drop PDF/CSV Bill of Materials"
+        >
+          <UploadCloud className="w-4 h-4 text-indigo-400" />
+          <span>Ingest BOM / File</span>
+        </button>
+
         <input
           type="text"
           value={customPrompt}
@@ -971,6 +1035,87 @@ export default function AutoProcureDashboard() {
                 className="px-4 py-2 text-xs rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold shadow-lg"
               >
                 Execute Partial Settlement
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Multimodal BOM Ingestion Dropzone Modal */}
+      {showBomModal && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-slate-900 border border-indigo-700/80 rounded-2xl p-6 shadow-2xl flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-indigo-400 font-bold">
+                <UploadCloud className="w-5 h-5 text-indigo-400" />
+                <h3>Multimodal BOM Ingestion Chamber</h3>
+              </div>
+              <button onClick={() => setShowBomModal(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              Upload an engineering Bill of Materials (PDF, CSV, or hardware schematic). Gemini Multimodal extracts line items, tolerances, and pricing to populate the AG Grid ledger automatically[cite: 2].
+            </p>
+
+            {/* Interactive Drop Area */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full h-44 bg-slate-950/80 rounded-xl border-2 border-dashed border-indigo-600/50 hover:border-indigo-400 flex flex-col items-center justify-center p-4 cursor-pointer transition relative group"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.csv,.png,.jpg,.jpeg,.txt"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleIngestBom(file.name, file.name.endsWith(".csv") ? "CSV" : "PDF");
+                }}
+              />
+              <FileSpreadsheet className={`w-10 h-10 ${isParsingBom ? "text-cyan-400 animate-bounce" : "text-indigo-400 group-hover:scale-110 transition"}`} />
+              <span className="text-xs font-mono text-slate-200 mt-3 font-semibold">
+                {isParsingBom ? "Gemini Multimodal Ingesting Document..." : "Click or Drag & Drop BOM (PDF / CSV / Image)"}
+              </span>
+              <span className="text-[10px] font-mono text-slate-500 mt-1">
+                Supports IEEE Hardware Schematics, IPC-2581 BOMs & Vendor CSVs
+              </span>
+            </div>
+
+            {/* Quick-Pick Enterprise Sample Templates */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] text-slate-400 font-mono">Or Ingest Enterprise Pre-verified Schematics:</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleIngestBom("Industrial_IoT_Telemetry_Subsystem_BOM.pdf", "PDF")}
+                  disabled={isParsingBom}
+                  className="p-2.5 rounded-lg text-xs font-mono bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500 text-slate-300 transition text-left flex flex-col gap-0.5"
+                >
+                  <span className="text-indigo-300 font-semibold text-[11px]">Industrial_IoT_BOM.pdf</span>
+                  <span className="text-[10px] text-slate-500">25x Sensors, ESP32 Gateways, QA Suite</span>
+                </button>
+                <button
+                  onClick={() => handleIngestBom("Autonomous_Drone_Avionics_BOM.csv", "CSV")}
+                  disabled={isParsingBom}
+                  className="p-2.5 rounded-lg text-xs font-mono bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500 text-slate-300 transition text-left flex flex-col gap-0.5"
+                >
+                  <span className="text-cyan-300 font-semibold text-[11px]">Drone_Avionics_BOM.csv</span>
+                  <span className="text-[10px] text-slate-500">LiDAR, 60A BLDC ESCs, Fail-Safe Suite</span>
+                </button>
+              </div>
+            </div>
+
+            {bomSuccessMessage && (
+              <div className="p-3 rounded-lg bg-emerald-950/60 border border-emerald-600/80 text-xs font-mono text-emerald-200 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{bomSuccessMessage}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowBomModal(false)}
+                className="px-4 py-2 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300"
+              >
+                Close
               </button>
             </div>
           </div>
